@@ -1,62 +1,48 @@
 import express from "express";
-import mysql from "mysql";
+import mongoose from "mongoose";
 import cors from "cors";
+import studentsRoutes from "./routes/students.js";
+import Student from "./models/Student.js";
+import dotenv from "dotenv";
 
+dotenv.config();
+
+console.clear();
 const app = express();
 app.use(cors({ origin: "*" }));
 app.use(express.json());
-const db = mysql.createConnection({
-  host: "localhost",
-  user: "root",
-  password: "",
-  database: "crud",
-});
-db.connect((err) => {
-  if (err) {
-    console.log("Erreur de connexion à la base de données :", err.message);
-    process.exit(1); // Arrête l'application si la connexion échoue
+const mongoURI = process.env.MONGO_URI || "mongodb://localhost:27017/universite";
+mongoose.connect(mongoURI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+})
+.then(async () => {
+    console.log("Connected to MongoDB");
+    console.log(mongoURI);
+    try {
+      const students = await Student.find();
+      console.log("=== LISTE DES ÉTUDIANTS ===");
+      if (students.length === 0) {
+          console.log("Aucun étudiant trouvé");
+      } else {
+          students.forEach((student, index) => {
+              console.log(`${index + 1}. ${student.nom} - ${student.mail || student.email}`);
+          });
+      }
+      console.log("============================");
+  } catch (err) {
+      console.log("Erreur lors de l'affichage des étudiants:", err);
   }
-  console.log("Connexion réussie à la base de données");
+})
+.catch((err) => {
+    console.log(err);
+    process.exit(1);
 });
-app.get("/", (req, res) => {
-  const sql = "SELECT * FROM students";
-  db.query(sql, (err, result) => {
-    if (err) return res.json({ Message: "Erreur de connexion" });
-    return res.json(result);
-  });
-});
-app.post("/students", (req, res) => {
-  const sql = "INSERT INTO STUDENTS (`name`,`mail`) VALUES (?)";
-  const values = [req.body.name, req.body.mail];
-  db.query(sql, [values], (err, result) => {
-    if (err) return res.json(err);
-    return res.json(result);
-  });
-});
-app.get("/read/:id", (req, res) => {
-  const sql = "SELECT * FROM students where id = ?";
-  const id = req.params.id;
-  db.query(sql, [id], (err, result) => {
-    if (err) return res.json({ Message: "Erreur de connexion" });
-    return res.json(result);
-  });
-});
-app.put("/update/:id", (req, res) => {
-  const sql = "UPDATE STUDENTS SET `name`=?, `mail`=? where id=?";
-  const id = req.params.id;
-  db.query(sql, [req.body.name, req.body.mail, id], (err, result) => {
-    if (err) return res.json({ Message: "Erreur de connexion" });
-    return res.json(result);
-  });
-});
-app.delete("/delete/:id", (req, res) => {
-  const sql = "DELETE from STUDENTS where id = ?";
-  const id = req.params.id;
-  db.query(sql, [id], (err, result) => {
-    if (err) return res.json({ Message: "Erreur de connexion" });
-    return res.json(result);
-  });
-});
-app.listen(8082, () => {
-  console.log("Hello");
+
+app.use("/", studentsRoutes);
+const PORT = process.env.PORT || 8082;
+app.listen(PORT, () => {
+  console.log(`🚀 Serveur Express actif`);
+  console.log(`🌐 http://localhost:${PORT}`);
+  console.log(`📊 Environnement: ${process.env.NODE_ENV}`);
 });
